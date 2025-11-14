@@ -1,4 +1,4 @@
-const articles = [
+export const articles = [
   {
     name: "learn-react",
     title: "The fastest way to learn react",
@@ -33,7 +33,7 @@ Mastering Node.js opens up opportunities in backend development, API integration
   },
 
   {
-    name: "learn-mongodb",
+    name: "learn-mongo",
     title: "Learn Mongodb",
     content: [
       `MongoDB is a popular open-source NoSQL database designed for scalability and flexibility.

@@ -4,18 +4,27 @@ import axios from "axios";
 import CommentsList from "../CommentsList";
 import { useState } from "react";
 import AddComment from "../AddCommentForm";
+import useUser from "../useUser";
 
 export default function ArticlePage() {
+  // const { user } = useUser();
   const { articleName } = useParams();
-  const { upvotes: initialUpvotes, comments: initialComments } = useLoaderData();
+  const { upvotes: initialUpvotes, comments: initialComments } =
+    useLoaderData();
   const [upvotes, setUpvotes] = useState(initialUpvotes);
   const [comments, setComments] = useState(initialComments);
+
+  const { isLoading, user } = useUser();
 
   const article = articles.find((a) => a.name === articleName);
 
   async function onUpvoteClicked() {
+    const token = user && (await user.getIdToken());
+    const headers = token ? { authtoken: token } : {};
     const response = await axios.post(
-      "/api/articles/" + articleName + "/upvote"
+      "/api/articles/" + articleName + "/upvote", 
+      null,
+      { headers }
     );
     console.log("data", response);
     const updatedArticleData = response.data;
@@ -25,11 +34,14 @@ export default function ArticlePage() {
   }
 
   async function onAddComment({ nameText, commentText }) {
+    const token = user && (await user.getIdToken());
+    const headers = token ? { authToken: token } : {};
     const response = await axios.post(
-      "/api/articles/" + articleName + "/comments", {
+      "/api/articles/" + articleName + "/comments",
+      {
         postedBy: nameText,
-        text: commentText
-      }
+        text: commentText,
+      }, {headers}
     );
     console.log("data", response);
     const updatedArticleData = response.data;
@@ -40,12 +52,12 @@ export default function ArticlePage() {
   return (
     <>
       <h1>{article?.title}</h1>
-      <button onClick={onUpvoteClicked}>Upvote</button>
+      {user && <button onClick={onUpvoteClicked}>Upvote</button>}
       <p>This article has {upvotes} upvotes! </p>
       {article?.content.map((p) => (
         <p key={p}>{p}</p>
       ))}
-      <AddComment onAddComment={onAddComment}></AddComment>
+      {user ? <AddComment onAddComment={onAddComment}></AddComment> : <p>Log in to add a comment</p>}
       <CommentsList comments={comments}></CommentsList>
     </>
   );

@@ -1,12 +1,19 @@
 import express from "express";
 import cors from "cors";
 import { MongoClient, ServerApiVersion } from "mongodb";
+import admin from "firebase-admin";
+import fs from "fs";
 
 // const articleInfo = [
 //   { articleName: "learn-node", upvotes: 0, comments: [] },
 //   { articleName: "learn-react", upvotes: 0, comments: [] },
 //   { articleName: "learn-mongo", upvotes: 0, comments: [] },
 // ];
+const credentials = JSON.parse(fs.readFileSync("./credentials.json"));
+
+admin.initializeApp({
+  credential: admin.credential.cert(credentials),
+});
 
 const app = express();
 app.use(cors());
@@ -44,6 +51,23 @@ app.get("/api/articles/:articleName", async (req, res) => {
   res.json(article);
 });
 
+//Middleware
+app.use(async (req, res, next) => {
+  const token = req.headers.authtoken;
+
+  if (token) {
+    try {
+      const user = await admin.auth().verifyIdToken(token);
+      req.user = user;
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+  }
+
+  next();
+});
+
+
 // app.get("/hello", function (req, res) {
 //   res.send("Hello from a GET endpoint!");
 // });
@@ -58,30 +82,36 @@ app.get("/api/articles/:articleName", async (req, res) => {
 
 //API url http://localhost:8000/api/articles/learn-node/upvote
 app.post("/api/articles/:articleName/upvote", async (req, res) => {
-  // const article = articleInfo.find((a) => a.articleName === req.params.name);
+  if (!req.user || !req.user.uid) {
+    return res.status(401).json({ message: "Unauthorized - No user found" });
+  }
 
-  // if (!article) {
-  //   return res.status(404).send("Article not found");
-  // }
-
-  // article.upvotes += 1;
-  // // res.send(`Success! The article ${req.params.name} now has ${article.upvotes} upvotes!`);
-  // res.json(article);
   const { articleName } = req.params;
-  const updatedArticle = await db
-    .collection("articles")
-    .findOneAndUpdate(
-      { articleName },
-      { $inc: { upvotes: 1 } },
-      { returnDocument: "after" }
-    );
-  res.json(updatedArticle);
+  const { uid } = req.user;
+
+  const article = await db.collection("articles").findOne({ articleName });
+
+  const upvoteIds = article.upvoteIds || [];
+  const canUpvote = uid && !upvoteIds.includes(uid);
+
+  if (canUpvote) {
+    const updatedArticle = await db
+      .collection("articles")
+      .findOneAndUpdate(
+        { articleName },
+        { $inc: { upvotes: 1 }, $push: { upvoteIds: uid } },
+        { returnDocument: "after" }
+      );
+    res.json(updatedArticle);
+  } else {
+    res.sendStatus(403);
+  }
 });
 
 app.post("/api/articles/:articleName/comments", async (req, res) => {
   const { articleName } = req.params;
   const { postedBy, text } = req.body;
-  const newComment = {postedBy, text};
+  const newComment = { postedBy, text };
 
   // const article = articleInfo.find((a) => a.articleName === name);
 
@@ -91,11 +121,15 @@ app.post("/api/articles/:articleName/comments", async (req, res) => {
   // });
 
   // res.json(article);
-  const updatedArticle = await db.collection('articles').findOneAndUpdate({ articleName}, {
-    $push: {comments: newComment}
-  }, {
-    returnDocument: 'after'
-  });
+  const updatedArticle = await db.collection("articles").findOneAndUpdate(
+    { articleName },
+    {
+      $push: { comments: newComment },
+    },
+    {
+      returnDocument: "after",
+    }
+  );
 
   res.json(updatedArticle);
 });

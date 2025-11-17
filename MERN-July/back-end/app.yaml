@@ -1,0 +1,26 @@
+includes:
+  - prod-env.yaml
+runtime: nodejs20
+
+# runtime: nodejs18
+
+# env_variables:
+#   MONGODB_USERNAME: "full-stack-react-server"
+#   MONGODB_PASSWORD: "gb23Q7QlvjIxN0We"
+
+# handlers:
+#   - url: /.*
+#     script: auto
+
+# runtime: nodejs20
+
+# env: standard
+
+# instance_class: F1
+
+# automatic_scaling:
+#   max_instances: 10
+
+# includes:
+#   - prod-env.yaml
+
